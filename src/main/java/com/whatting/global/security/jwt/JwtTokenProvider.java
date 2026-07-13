@@ -30,11 +30,7 @@ public class JwtTokenProvider {
         String accessToken = generateAccessToken(username, role);
         String refreshToken = generateRefreshToken(username, role);
 
-        return TokenWithRoleResponse.builder()
-                .accessToken(accessToken)
-                .refreshToken(refreshToken)
-                .role(role)
-                .build();
+        return new TokenWithRoleResponse(accessToken, refreshToken, role);
     }
 
     public String generateAccessToken(String username, Role role) {

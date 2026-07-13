@@ -1,31 +1,16 @@
 package com.whatting.global.error;
 
 import com.whatting.global.error.exception.ErrorCode;
-import lombok.Builder;
-import lombok.Getter;
 
-@Getter
-public class ErrorResponse {
-    private final int status;
-    private final String message;
-
-    @Builder
-    private ErrorResponse(int status, String message) {
-        this.status = status;
-        this.message = message;
-    }
-
+public record ErrorResponse(
+        int status,
+        String message
+) {
     public static ErrorResponse of(int status, String message) {
-        return ErrorResponse.builder()
-                .status(status)
-                .message(message)
-                .build();
+        return new ErrorResponse(status, message);
     }
 
     public static ErrorResponse of(ErrorCode errorCode) {
-        return ErrorResponse.builder()
-                .status(errorCode.getStatus())
-                .message(errorCode.getMessage())
-                .build();
+        return new ErrorResponse(errorCode.getStatus(), errorCode.getMessage());
     }
 }

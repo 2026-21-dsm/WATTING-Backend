@@ -25,14 +25,14 @@ public class TokenRefreshService {
 
     @Transactional
     public TokenWithRoleResponse execute(RefreshTokenRequest request) {
-        jwtTokenProvider.validateToken(request.getRefreshToken());
+        jwtTokenProvider.validateToken(request.refreshToken());
 
-        Authentication authentication = jwtTokenProvider.getAuthentication(request.getRefreshToken());
+        Authentication authentication = jwtTokenProvider.getAuthentication(request.refreshToken());
         String name = authentication.getName();
         RefreshToken savedRefreshToken = refreshTokenRepository.findById(name)
                 .orElseThrow(() -> RefreshTokenNotFoundException.EXCEPTION);
 
-        if(!savedRefreshToken.getToken().equals(request.getRefreshToken())) {
+        if(!savedRefreshToken.getToken().equals(request.refreshToken())) {
             throw RefreshTokenMisMatchException.EXCEPTION;
         }
 
@@ -43,10 +43,6 @@ public class TokenRefreshService {
         String accessToken = jwtTokenProvider.generateAccessToken(name, role);
         String refreshToken = jwtTokenProvider.generateRefreshToken(name, role);
 
-        return TokenWithRoleResponse.builder()
-                .accessToken(accessToken)
-                .refreshToken(refreshToken)
-                .role(role)
-                .build();
+        return new TokenWithRoleResponse(accessToken, refreshToken, role);
     }
 }
