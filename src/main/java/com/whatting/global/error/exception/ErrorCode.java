@@ -30,6 +30,12 @@ public enum ErrorCode {
     Student_Permission_Required_Exception(403, "학생 권한이 필요합니다"),
     Alert_Participant_Not_Found_Exception(404, "해당 경보 대상 학생이 아닙니다"),
     Invalid_Student_Status_Exception(400, "허용되지 않은 학생 상태입니다"),
+    Active_Help_Request_Exists_Exception(409, "해결되지 않은 도움 요청이 이미 존재합니다"),
+    Help_Request_Not_Found_Exception(404, "도움 요청을 찾을 수 없습니다"),
+    Help_Request_Id_Required_Exception(400, "도움 요청 ID는 필수입니다"),
+    Help_Request_Already_Resolved_Exception(409, "이미 해결된 요청입니다"),
+    Invalid_Help_Status_Transition_Exception(409, "허용되지 않은 도움 요청 상태 변경입니다"),
+    Resolution_Note_Required_Exception(400, "해결 완료 처리 내용은 필수입니다"),
 
     //apply
     Invalid_Meal_Type_Exception(400, "유효하지 않은 급식 유형입니다."),
