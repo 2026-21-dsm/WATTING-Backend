@@ -27,21 +27,21 @@ public class SignupService {
     @Transactional
     public UserResponse signupStudent(StudentSignupRequest request) {
         if (userRepository.existsBySchoolNameAndGradeAndClassNumberAndStudentNumber(
-                request.getSchoolName(),
-                request.getGrade(),
-                request.getClassNumber(),
-                request.getStudentNumber()
+                request.schoolName(),
+                request.grade(),
+                request.classNumber(),
+                request.studentNumber()
         )) {
             throw StudentAlreadyExistsException.EXCEPTION;
         }
 
         User user = User.createStudent(
-                request.getSchoolName(),
-                request.getGrade(),
-                request.getClassNumber(),
-                request.getStudentNumber(),
-                request.getName(),
-                passwordEncoder.encode(request.getPassword())
+                request.schoolName(),
+                request.grade(),
+                request.classNumber(),
+                request.studentNumber(),
+                request.name(),
+                passwordEncoder.encode(request.password())
         );
 
         return UserResponse.from(userRepository.save(user));
@@ -49,18 +49,18 @@ public class SignupService {
 
     @Transactional
     public UserResponse signupTeacher(TeacherSignupRequest request) {
-        if (!teacherCode.equals(request.getTeacherCode())) {
+        if (!teacherCode.equals(request.teacherCode())) {
             throw InvalidTeacherCodeException.EXCEPTION;
         }
 
-        if (userRepository.existsBySchoolNameAndNameAndRole(request.getSchoolName(), request.getName(), Role.TEACHER)) {
+        if (userRepository.existsBySchoolNameAndNameAndRole(request.schoolName(), request.name(), Role.TEACHER)) {
             throw TeacherAlreadyExistsException.EXCEPTION;
         }
 
         User user = User.createTeacher(
-                request.getSchoolName(),
-                request.getName(),
-                passwordEncoder.encode(request.getPassword())
+                request.schoolName(),
+                request.name(),
+                passwordEncoder.encode(request.password())
         );
 
         return UserResponse.from(userRepository.save(user));

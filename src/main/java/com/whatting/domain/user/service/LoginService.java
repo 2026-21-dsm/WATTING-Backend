@@ -21,13 +21,13 @@ public class LoginService {
 
     @Transactional
     public TokenWithRoleResponse execute(AuthRequest authRequest) {
-        User user = userRepository.findByName(authRequest.getName())
+        User user = userRepository.findByName(authRequest.name())
                 .orElseThrow(() -> UserNotFoundException.EXCEPTION);
 
-        if(!passwordEncoder.matches(authRequest.getPassword(), user.getPassword())) {
+        if(!passwordEncoder.matches(authRequest.password(), user.getPassword())) {
             throw PasswordMisMatchException.EXCEPTION;
         }
 
-        return jwtTokenProvider.generateBothToken(authRequest.getName(), user.getRole());
+        return jwtTokenProvider.generateBothToken(authRequest.name(), user.getRole());
     }
 }

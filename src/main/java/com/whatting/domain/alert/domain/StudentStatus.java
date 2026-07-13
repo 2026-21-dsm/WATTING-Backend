@@ -2,6 +2,6 @@ package com.whatting.domain.alert.domain;
 
 public enum StudentStatus {
     NO_RESPONSE,
-    EVACUATING,
-    EVACUATED
+    EVACUATING, // 대피중
+    EVACUATED // 대피완료
 }
