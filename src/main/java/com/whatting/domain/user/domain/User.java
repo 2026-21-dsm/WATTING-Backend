@@ -54,6 +54,39 @@ public class User {
     @Column(name = "role", nullable = false)
     private Role role;
 
+    private User(
+            String schoolName,
+            Integer grade,
+            Integer classNumber,
+            Integer studentNumber,
+            String name,
+            String password,
+            Role role
+    ) {
+        this.schoolName = schoolName;
+        this.grade = grade;
+        this.classNumber = classNumber;
+        this.studentNumber = studentNumber;
+        this.name = name;
+        this.password = password;
+        this.role = role;
+    }
+
+    public static User createStudent(
+            String schoolName,
+            Integer grade,
+            Integer classNumber,
+            Integer studentNumber,
+            String name,
+            String password
+    ) {
+        return new User(schoolName, grade, classNumber, studentNumber, name, password, Role.STUDENT);
+    }
+
+    public static User createTeacher(String schoolName, String name, String password) {
+        return new User(schoolName, null, null, null, name, password, Role.TEACHER);
+    }
+
     @PrePersist
     private void generateUserId() {
         if (userId == null) {

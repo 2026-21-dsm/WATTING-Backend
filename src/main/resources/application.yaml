@@ -31,3 +31,6 @@ jwt:
   refreshExp: ${REFRESH_EXP:1209600}
   header: ${HEADER:Authorization}
   prefix: ${PREFIX:Bearer }
+
+teacher:
+  code: ${TEACHER_CODE:teacher-invite-code}
