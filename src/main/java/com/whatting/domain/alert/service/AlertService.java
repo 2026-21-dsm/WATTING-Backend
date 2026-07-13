@@ -3,19 +3,26 @@ package com.whatting.domain.alert.service;
 import com.whatting.domain.alert.domain.Alert;
 import com.whatting.domain.alert.domain.AlertParticipant;
 import com.whatting.domain.alert.domain.AlertStatus;
+import com.whatting.domain.alert.domain.StudentStatus;
 import com.whatting.domain.alert.domain.TeacherConfirmation;
 import com.whatting.domain.alert.exception.ActiveAlertExistsException;
 import com.whatting.domain.alert.exception.AlertAlreadyClosedException;
 import com.whatting.domain.alert.exception.AlertNotFoundException;
+import com.whatting.domain.alert.exception.AlertParticipantNotFoundException;
+import com.whatting.domain.alert.exception.InvalidStudentStatusException;
+import com.whatting.domain.alert.exception.StudentPermissionRequiredException;
 import com.whatting.domain.alert.exception.TeacherPermissionRequiredException;
 import com.whatting.domain.alert.presentation.dto.request.CloseAlertRequest;
 import com.whatting.domain.alert.presentation.dto.request.CreateAlertRequest;
+import com.whatting.domain.alert.presentation.dto.request.UpdateMyAlertStatusRequest;
 import com.whatting.domain.alert.presentation.dto.request.UpdateAlertTypeRequest;
 import com.whatting.domain.alert.presentation.dto.response.ActiveAlertResponse;
 import com.whatting.domain.alert.presentation.dto.response.AlertCloseSummaryResponse;
 import com.whatting.domain.alert.presentation.dto.response.CloseAlertResponse;
 import com.whatting.domain.alert.presentation.dto.response.CreateAlertResponse;
+import com.whatting.domain.alert.presentation.dto.response.MyAlertStatusResponse;
 import com.whatting.domain.alert.presentation.dto.response.UpdateAlertTypeResponse;
+import com.whatting.domain.alert.presentation.dto.response.UpdateMyAlertStatusResponse;
 import com.whatting.domain.alert.repository.AlertParticipantRepository;
 import com.whatting.domain.alert.repository.AlertRepository;
 import com.whatting.domain.user.domain.Role;
@@ -137,15 +144,69 @@ public class AlertService {
         );
     }
 
+    @Transactional(readOnly = true)
+    public MyAlertStatusResponse getMyAlertStatus(UUID alertId, User requester) {
+        User student = requireStudent(requester);
+        Alert alert = getAlert(alertId);
+        AlertParticipant participant = getParticipant(alert, student);
+
+        return new MyAlertStatusResponse(
+                alert.getAlertId(),
+                participant.getStudentStatus(),
+                participant.getStudentStatusUpdatedAt(),
+                participant.getTeacherConfirmation(),
+                participant.getConfirmedAt(),
+                null
+        );
+    }
+
+    @Transactional
+    public UpdateMyAlertStatusResponse updateMyAlertStatus(
+            UUID alertId,
+            UpdateMyAlertStatusRequest request,
+            User requester
+    ) {
+        User student = requireStudent(requester);
+        Alert alert = getAlert(alertId);
+        if (alert.isClosed()) {
+            throw AlertAlreadyClosedException.EXCEPTION;
+        }
+        if (request.status() == StudentStatus.NO_RESPONSE) {
+            throw InvalidStudentStatusException.EXCEPTION;
+        }
+
+        AlertParticipant participant = getParticipant(alert, student);
+        participant.updateStudentStatus(request.status());
+
+        return new UpdateMyAlertStatusResponse(
+                participant.getStudentStatus(),
+                participant.getStudentStatusUpdatedAt(),
+                participant.getTeacherConfirmation()
+        );
+    }
+
     private Alert getAlert(UUID alertId) {
         return alertRepository.findByAlertId(alertId)
                 .orElseThrow(() -> AlertNotFoundException.EXCEPTION);
+    }
+
+    private AlertParticipant getParticipant(Alert alert, User student) {
+        return alertParticipantRepository.findByAlertAndStudent(alert, student)
+                .orElseThrow(() -> AlertParticipantNotFoundException.EXCEPTION);
     }
 
     private User requireTeacher(User requester) {
         User user = requireAuthenticated(requester);
         if (user.getRole() != Role.TEACHER) {
             throw TeacherPermissionRequiredException.EXCEPTION;
+        }
+        return user;
+    }
+
+    private User requireStudent(User requester) {
+        User user = requireAuthenticated(requester);
+        if (user.getRole() != Role.STUDENT) {
+            throw StudentPermissionRequiredException.EXCEPTION;
         }
         return user;
     }

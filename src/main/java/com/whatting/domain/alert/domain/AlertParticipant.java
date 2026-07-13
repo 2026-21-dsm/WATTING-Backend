@@ -76,6 +76,11 @@ public class AlertParticipant {
         return participant;
     }
 
+    public void updateStudentStatus(StudentStatus studentStatus) {
+        this.studentStatus = studentStatus;
+        this.studentStatusUpdatedAt = OffsetDateTime.now(SERVICE_ZONE);
+    }
+
     public void confirm(User teacher, boolean confirmed) {
         if (confirmed) {
             this.teacherConfirmation = TeacherConfirmation.CONFIRMED;
