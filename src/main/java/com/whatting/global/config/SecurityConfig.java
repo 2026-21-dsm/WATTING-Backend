@@ -49,6 +49,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/v1/alerts/active").hasAnyAuthority("STUDENT", "TEACHER")
                         .requestMatchers(HttpMethod.PATCH, "/api/v1/alerts/{alertId}/type").hasAuthority("TEACHER")
                         .requestMatchers(HttpMethod.POST, "/api/v1/alerts/{alertId}/close").hasAuthority("TEACHER")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/alerts/{alertId}/me").hasAuthority("STUDENT")
+                        .requestMatchers(HttpMethod.PUT, "/api/v1/alerts/{alertId}/me/status").hasAuthority("STUDENT")
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(new JwtAuthenticationFilter(jwtTokenProvider, objectMapper),

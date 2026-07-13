@@ -27,6 +27,9 @@ public enum ErrorCode {
     Alert_Not_Found_Exception(404, "경보를 찾을 수 없습니다"),
     Alert_Already_Closed_Exception(409, "이미 종료된 경보입니다"),
     Teacher_Permission_Required_Exception(403, "교사 권한이 필요합니다"),
+    Student_Permission_Required_Exception(403, "학생 권한이 필요합니다"),
+    Alert_Participant_Not_Found_Exception(404, "해당 경보 대상 학생이 아닙니다"),
+    Invalid_Student_Status_Exception(400, "허용되지 않은 학생 상태입니다"),
 
     //apply
     Invalid_Meal_Type_Exception(400, "유효하지 않은 급식 유형입니다."),
