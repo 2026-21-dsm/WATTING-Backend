@@ -51,6 +51,12 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/v1/alerts/{alertId}/close").hasAuthority("TEACHER")
                         .requestMatchers(HttpMethod.GET, "/api/v1/alerts/{alertId}/me").hasAuthority("STUDENT")
                         .requestMatchers(HttpMethod.PUT, "/api/v1/alerts/{alertId}/me/status").hasAuthority("STUDENT")
+                        .requestMatchers(HttpMethod.POST, "/api/v1/alerts/{alertId}/help-requests").hasAuthority("STUDENT")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/alerts/{alertId}/help-requests/me").hasAuthority("STUDENT")
+                        .requestMatchers(HttpMethod.PATCH, "/api/v1/alerts/{alertId}/help-requests/me").hasAuthority("STUDENT")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/alerts/{alertId}/help-requests").hasAuthority("TEACHER")
+                        .requestMatchers(HttpMethod.PATCH, "/api/v1/alerts/{alertId}/help-requests/status").hasAuthority("TEACHER")
+                        .requestMatchers(HttpMethod.PATCH, "/api/v1/alerts/{alertId}/help-requests/{helpRequestId}/status").hasAuthority("TEACHER")
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(new JwtAuthenticationFilter(jwtTokenProvider, objectMapper),

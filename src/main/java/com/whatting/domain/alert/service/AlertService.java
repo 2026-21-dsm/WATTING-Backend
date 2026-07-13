@@ -3,6 +3,7 @@ package com.whatting.domain.alert.service;
 import com.whatting.domain.alert.domain.Alert;
 import com.whatting.domain.alert.domain.AlertParticipant;
 import com.whatting.domain.alert.domain.AlertStatus;
+import com.whatting.domain.help.domain.HelpStatus;
 import com.whatting.domain.alert.domain.StudentStatus;
 import com.whatting.domain.alert.domain.TeacherConfirmation;
 import com.whatting.domain.alert.exception.ActiveAlertExistsException;
@@ -20,11 +21,13 @@ import com.whatting.domain.alert.presentation.dto.response.ActiveAlertResponse;
 import com.whatting.domain.alert.presentation.dto.response.AlertCloseSummaryResponse;
 import com.whatting.domain.alert.presentation.dto.response.CloseAlertResponse;
 import com.whatting.domain.alert.presentation.dto.response.CreateAlertResponse;
+import com.whatting.domain.help.presentation.dto.response.HelpRequestResponse;
 import com.whatting.domain.alert.presentation.dto.response.MyAlertStatusResponse;
 import com.whatting.domain.alert.presentation.dto.response.UpdateAlertTypeResponse;
 import com.whatting.domain.alert.presentation.dto.response.UpdateMyAlertStatusResponse;
 import com.whatting.domain.alert.repository.AlertParticipantRepository;
 import com.whatting.domain.alert.repository.AlertRepository;
+import com.whatting.domain.help.repository.HelpRequestRepository;
 import com.whatting.domain.user.domain.Role;
 import com.whatting.domain.user.domain.User;
 import com.whatting.domain.user.exception.UserNotFoundException;
@@ -43,6 +46,7 @@ public class AlertService {
 
     private final AlertRepository alertRepository;
     private final AlertParticipantRepository alertParticipantRepository;
+    private final HelpRequestRepository helpRequestRepository;
     private final UserRepository userRepository;
 
     @Transactional
@@ -129,6 +133,10 @@ public class AlertService {
                 TeacherConfirmation.CONFIRMED
         );
         long unconfirmedCount = participantCount - confirmedCount;
+        long unresolvedHelpCount = helpRequestRepository.countByAlertAndStatusIn(
+                alert,
+                List.of(HelpStatus.UNCHECKED, HelpStatus.ACKNOWLEDGED)
+        );
 
         return new CloseAlertResponse(
                 alert.getAlertId(),
@@ -139,7 +147,7 @@ public class AlertService {
                         participantCount,
                         confirmedCount,
                         unconfirmedCount,
-                        0
+                        unresolvedHelpCount
                 )
         );
     }
@@ -149,6 +157,10 @@ public class AlertService {
         User student = requireStudent(requester);
         Alert alert = getAlert(alertId);
         AlertParticipant participant = getParticipant(alert, student);
+        HelpRequestResponse helpRequest = helpRequestRepository
+                .findFirstByAlertAndParticipantOrderByCreatedAtDesc(alert, participant)
+                .map(HelpRequestResponse::from)
+                .orElse(null);
 
         return new MyAlertStatusResponse(
                 alert.getAlertId(),
@@ -156,7 +168,7 @@ public class AlertService {
                 participant.getStudentStatusUpdatedAt(),
                 participant.getTeacherConfirmation(),
                 participant.getConfirmedAt(),
-                null
+                helpRequest
         );
     }
 
