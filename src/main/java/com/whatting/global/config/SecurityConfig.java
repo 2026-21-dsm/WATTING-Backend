@@ -1,8 +1,10 @@
 package com.whatting.global.config;
 
+import com.whatting.global.error.ErrorResponse;
 import com.whatting.global.security.jwt.JwtAuthenticationFilter;
 import com.whatting.global.security.jwt.JwtProperty;
 import com.whatting.global.security.jwt.JwtTokenProvider;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -32,11 +34,21 @@ public class SecurityConfig {
                 .formLogin(form -> form.disable())
                 .httpBasic(httpBasic -> httpBasic.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .exceptionHandling(exception -> exception
+                        .authenticationEntryPoint((request, response, authException) ->
+                                writeErrorResponse(response, HttpServletResponse.SC_UNAUTHORIZED, "로그인이 필요합니다"))
+                        .accessDeniedHandler((request, response, accessDeniedException) ->
+                                writeErrorResponse(response, HttpServletResponse.SC_FORBIDDEN, "접근 권한이 없습니다"))
+                )
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.POST, "/api/v1/auth/signup").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/auth/teachers/signup").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/auth/login").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/auth/refresh").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/alerts").hasAuthority("TEACHER")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/alerts/active").hasAnyAuthority("STUDENT", "TEACHER")
+                        .requestMatchers(HttpMethod.PATCH, "/api/v1/alerts/{alertId}/type").hasAuthority("TEACHER")
+                        .requestMatchers(HttpMethod.POST, "/api/v1/alerts/{alertId}/close").hasAuthority("TEACHER")
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(new JwtAuthenticationFilter(jwtTokenProvider, objectMapper),
@@ -48,5 +60,12 @@ public class SecurityConfig {
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
+    }
+
+    private void writeErrorResponse(HttpServletResponse response, int status, String message) throws java.io.IOException {
+        response.setStatus(status);
+        response.setContentType("application/json");
+        response.setCharacterEncoding("UTF-8");
+        response.getWriter().write(objectMapper.writeValueAsString(ErrorResponse.of(status, message)));
     }
 }

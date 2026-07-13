@@ -22,6 +22,12 @@ public enum ErrorCode {
     Refresh_Token_Not_Found_Exception(404, "refreshToken을 찾을 수 없습니다"),
     Refresh_Token_Mis_Match_Exception(403, "refreshToken 값이 저장된 값과 일치하지 않습니다"),
 
+    //alert
+    Active_Alert_Exists_Exception(409, "이미 진행 중인 경보가 있습니다"),
+    Alert_Not_Found_Exception(404, "경보를 찾을 수 없습니다"),
+    Alert_Already_Closed_Exception(409, "이미 종료된 경보입니다"),
+    Teacher_Permission_Required_Exception(403, "교사 권한이 필요합니다"),
+
     //apply
     Invalid_Meal_Type_Exception(400, "유효하지 않은 급식 유형입니다."),
     Apply_Not_Found_Exception(404, "해당 신청 내역을 찾을 수 없습니다."),
