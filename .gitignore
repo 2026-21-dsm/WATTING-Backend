@@ -38,3 +38,6 @@ out/
 
 ### yaml
 application-local.yaml
+
+### DS
+.DS_store
