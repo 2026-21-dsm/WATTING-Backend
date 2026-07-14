@@ -4,6 +4,6 @@ public record AlertCloseSummaryResponse(
         long participantCount,
         long confirmedCount,
         long unconfirmedCount,
-        long unresolvedHelpCount
+        long unresolvedHelpStudentCount
 ) {
 }

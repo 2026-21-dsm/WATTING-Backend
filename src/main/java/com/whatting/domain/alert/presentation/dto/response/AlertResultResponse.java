@@ -17,6 +17,7 @@ public record AlertResultResponse(
         AlertCloseReasonType reasonType,
         String customReason,
         AlertResultSummaryResponse summary,
-        List<AlertResultUnconfirmedStudentResponse> unconfirmedStudents
+        List<AlertResultUnconfirmedStudentResponse> unconfirmedStudents,
+        List<AlertResultUnresolvedHelpRequestResponse> unresolvedHelpRequests
 ) {
 }

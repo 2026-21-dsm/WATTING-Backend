@@ -69,9 +69,9 @@ public class HelpRequestController {
     public ResponseEntity<TeacherHelpRequestListResponse> getHelpRequests(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable UUID alertId,
-            @RequestParam(required = false) HelpStatus status
+            @RequestParam(name = "helpStatus", required = false) HelpStatus helpStatus
     ) {
-        return ResponseEntity.ok(helpRequestService.getHelpRequests(alertId, status, getUser(userDetails)));
+        return ResponseEntity.ok(helpRequestService.getHelpRequests(alertId, helpStatus, getUser(userDetails)));
     }
 
     @GetMapping("/{helpRequestId}")

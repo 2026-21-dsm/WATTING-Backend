@@ -14,13 +14,16 @@ import java.util.UUID;
 
 public interface HelpRequestRepository extends JpaRepository<HelpRequest, Long> {
 
+    boolean existsByAlertAndParticipant(Alert alert, AlertParticipant participant);
+
     boolean existsByAlertAndParticipantAndStatusIn(
             Alert alert,
             AlertParticipant participant,
             Collection<HelpStatus> statuses
     );
 
-    Optional<HelpRequest> findFirstByAlertAndParticipantOrderByCreatedAtDesc(
+    @EntityGraph(attributePaths = {"participant", "participant.student"})
+    Optional<HelpRequest> findByAlertAndParticipant(
             Alert alert,
             AlertParticipant participant
     );
@@ -34,7 +37,7 @@ public interface HelpRequestRepository extends JpaRepository<HelpRequest, Long> 
     @EntityGraph(attributePaths = {"participant", "participant.student"})
     List<HelpRequest> findByAlertAndStatus(Alert alert, HelpStatus status);
 
-    @EntityGraph(attributePaths = {"participant"})
+    @EntityGraph(attributePaths = {"participant", "participant.student"})
     List<HelpRequest> findByAlertAndStatusIn(Alert alert, Collection<HelpStatus> statuses);
 
     long countByAlert(Alert alert);
