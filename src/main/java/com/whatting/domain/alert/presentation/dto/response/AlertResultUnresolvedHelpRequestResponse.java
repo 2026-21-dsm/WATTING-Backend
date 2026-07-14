@@ -1,15 +1,14 @@
-package com.whatting.domain.help.presentation.dto.response;
+package com.whatting.domain.alert.presentation.dto.response;
 
+import com.whatting.domain.alert.domain.StudentStatus;
 import com.whatting.domain.help.domain.HelpCategory;
 import com.whatting.domain.help.domain.HelpRequest;
 import com.whatting.domain.help.domain.HelpStatus;
-import com.whatting.domain.alert.domain.StudentStatus;
 import com.whatting.domain.user.domain.User;
 
-import java.time.OffsetDateTime;
 import java.util.UUID;
 
-public record TeacherHelpRequestResponse(
+public record AlertResultUnresolvedHelpRequestResponse(
         UUID helpRequestId,
         String studentName,
         Integer grade,
@@ -18,13 +17,12 @@ public record TeacherHelpRequestResponse(
         StudentStatus studentStatus,
         HelpStatus helpStatus,
         String locationText,
-        HelpCategory category,
-        OffsetDateTime createdAt
+        HelpCategory category
 ) {
-    public static TeacherHelpRequestResponse from(HelpRequest helpRequest) {
+    public static AlertResultUnresolvedHelpRequestResponse from(HelpRequest helpRequest) {
         User student = helpRequest.getParticipant().getStudent();
 
-        return new TeacherHelpRequestResponse(
+        return new AlertResultUnresolvedHelpRequestResponse(
                 helpRequest.getHelpRequestId(),
                 student.getName(),
                 student.getGrade(),
@@ -33,8 +31,7 @@ public record TeacherHelpRequestResponse(
                 helpRequest.getParticipant().getStudentStatus(),
                 helpRequest.getStatus(),
                 helpRequest.getLocationText(),
-                helpRequest.getCategory(),
-                helpRequest.getCreatedAt()
+                helpRequest.getCategory()
         );
     }
 }

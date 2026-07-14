@@ -13,8 +13,10 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -23,7 +25,15 @@ import java.time.ZoneId;
 import java.util.UUID;
 
 @Entity
-@Table(name = "help_request_tbl")
+@Table(
+        name = "help_request_tbl",
+        uniqueConstraints = {
+                @UniqueConstraint(
+                        name = "uk_help_request_participant",
+                        columnNames = "participant_id"
+                )
+        }
+)
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class HelpRequest {
@@ -42,8 +52,8 @@ public class HelpRequest {
     @JoinColumn(name = "alert_id", nullable = false)
     private Alert alert;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "participant_id", nullable = false)
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "participant_id", nullable = false, unique = true)
     private AlertParticipant participant;
 
     @Enumerated(EnumType.STRING)

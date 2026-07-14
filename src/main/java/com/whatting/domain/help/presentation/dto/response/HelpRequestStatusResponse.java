@@ -9,7 +9,7 @@ import java.util.UUID;
 
 public record HelpRequestStatusResponse(
         UUID helpRequestId,
-        HelpStatus status,
+        HelpStatus helpStatus,
         HelpRequestHandledByResponse handledBy,
         OffsetDateTime acknowledgedAt,
         OffsetDateTime resolvedAt,

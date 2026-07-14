@@ -5,10 +5,10 @@ import com.whatting.domain.alert.domain.AlertParticipant;
 import com.whatting.domain.alert.domain.StudentStatus;
 import com.whatting.domain.help.domain.HelpRequest;
 import com.whatting.domain.help.domain.HelpStatus;
-import com.whatting.domain.help.exception.ActiveHelpRequestExistsException;
 import com.whatting.domain.alert.exception.AlertAlreadyClosedException;
 import com.whatting.domain.alert.exception.AlertNotFoundException;
 import com.whatting.domain.alert.exception.AlertParticipantNotFoundException;
+import com.whatting.domain.help.exception.HelpRequestAlreadyExistsException;
 import com.whatting.domain.help.exception.HelpRequestAlreadyResolvedException;
 import com.whatting.domain.help.exception.HelpRequestNotFoundException;
 import com.whatting.domain.help.exception.InvalidHelpStatusTransitionException;
@@ -43,11 +43,6 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class HelpRequestService {
 
-    private static final List<HelpStatus> UNRESOLVED_STATUSES = List.of(
-            HelpStatus.UNCHECKED,
-            HelpStatus.ACKNOWLEDGED
-    );
-
     private final AlertRepository alertRepository;
     private final AlertParticipantRepository alertParticipantRepository;
     private final HelpRequestRepository helpRequestRepository;
@@ -62,8 +57,8 @@ public class HelpRequestService {
         }
 
         AlertParticipant participant = getParticipant(alert, student);
-        if (helpRequestRepository.existsByAlertAndParticipantAndStatusIn(alert, participant, UNRESOLVED_STATUSES)) {
-            throw ActiveHelpRequestExistsException.EXCEPTION;
+        if (helpRequestRepository.existsByAlertAndParticipant(alert, participant)) {
+            throw HelpRequestAlreadyExistsException.EXCEPTION;
         }
 
         HelpRequest helpRequest = HelpRequest.create(
@@ -84,7 +79,7 @@ public class HelpRequestService {
         Alert alert = getAlert(alertId);
         AlertParticipant participant = getParticipant(alert, student);
 
-        return helpRequestRepository.findFirstByAlertAndParticipantOrderByCreatedAtDesc(alert, participant)
+        return helpRequestRepository.findByAlertAndParticipant(alert, participant)
                 .map(HelpRequestResponse::from);
     }
 
@@ -101,7 +96,7 @@ public class HelpRequestService {
         }
 
         AlertParticipant participant = getParticipant(alert, student);
-        HelpRequest helpRequest = helpRequestRepository.findFirstByAlertAndParticipantOrderByCreatedAtDesc(
+        HelpRequest helpRequest = helpRequestRepository.findByAlertAndParticipant(
                 alert,
                 participant
         ).orElseThrow(() -> HelpRequestNotFoundException.EXCEPTION);
@@ -115,13 +110,13 @@ public class HelpRequestService {
     }
 
     @Transactional(readOnly = true)
-    public TeacherHelpRequestListResponse getHelpRequests(UUID alertId, HelpStatus status, User requester) {
+    public TeacherHelpRequestListResponse getHelpRequests(UUID alertId, HelpStatus helpStatus, User requester) {
         requireTeacher(requester);
         Alert alert = getAlert(alertId);
 
-        List<HelpRequest> helpRequests = status == null
+        List<HelpRequest> helpRequests = helpStatus == null
                 ? helpRequestRepository.findByAlert(alert)
-                : helpRequestRepository.findByAlertAndStatus(alert, status);
+                : helpRequestRepository.findByAlertAndStatus(alert, helpStatus);
         List<TeacherHelpRequestResponse> items = helpRequests.stream()
                 .sorted(Comparator
                         .comparingInt((HelpRequest helpRequest) -> priorityOf(helpRequest.getStatus()))
@@ -163,12 +158,12 @@ public class HelpRequestService {
     }
 
     private void changeStatus(HelpRequest helpRequest, UpdateHelpRequestStatusRequest request, User teacher) {
-        if (request.status() == HelpStatus.ACKNOWLEDGED && helpRequest.getStatus() == HelpStatus.UNCHECKED) {
+        if (request.helpStatus() == HelpStatus.ACKNOWLEDGED && helpRequest.getStatus() == HelpStatus.UNCHECKED) {
             helpRequest.acknowledge(teacher);
             return;
         }
 
-        if (request.status() == HelpStatus.RESOLVED && helpRequest.getStatus() == HelpStatus.ACKNOWLEDGED) {
+        if (request.helpStatus() == HelpStatus.RESOLVED && helpRequest.getStatus() == HelpStatus.ACKNOWLEDGED) {
             if (request.resolutionNote() == null || request.resolutionNote().isBlank()) {
                 throw ResolutionNoteRequiredException.EXCEPTION;
             }

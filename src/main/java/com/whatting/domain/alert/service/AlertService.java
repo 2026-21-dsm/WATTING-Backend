@@ -15,6 +15,8 @@ import com.whatting.domain.alert.exception.AlertParticipantNotFoundException;
 import com.whatting.domain.alert.exception.InvalidStudentStatusException;
 import com.whatting.domain.alert.exception.StudentPermissionRequiredException;
 import com.whatting.domain.alert.exception.TeacherPermissionRequiredException;
+import com.whatting.domain.help.domain.HelpRequest;
+import com.whatting.domain.help.exception.HelpRequestNotResolvedException;
 import com.whatting.domain.alert.presentation.dto.request.CloseAlertRequest;
 import com.whatting.domain.alert.presentation.dto.request.CreateAlertRequest;
 import com.whatting.domain.alert.presentation.dto.request.UpdateMyAlertStatusRequest;
@@ -25,6 +27,7 @@ import com.whatting.domain.alert.presentation.dto.response.AlertDashboardRespons
 import com.whatting.domain.alert.presentation.dto.response.AlertResultResponse;
 import com.whatting.domain.alert.presentation.dto.response.AlertResultSummaryResponse;
 import com.whatting.domain.alert.presentation.dto.response.AlertResultUnconfirmedStudentResponse;
+import com.whatting.domain.alert.presentation.dto.response.AlertResultUnresolvedHelpRequestResponse;
 import com.whatting.domain.alert.presentation.dto.response.AlertStudentListResponse;
 import com.whatting.domain.alert.presentation.dto.response.AlertStudentResponse;
 import com.whatting.domain.alert.presentation.dto.response.CloseAlertResponse;
@@ -159,7 +162,7 @@ public class AlertService {
                 TeacherConfirmation.CONFIRMED
         );
         long unconfirmedCount = participantCount - confirmedCount;
-        long unresolvedHelpCount = helpRequestRepository.countByAlertAndStatusIn(
+        long unresolvedHelpStudentCount = helpRequestRepository.countByAlertAndStatusIn(
                 alert,
                 UNRESOLVED_HELP_STATUSES
         );
@@ -174,7 +177,7 @@ public class AlertService {
                         participantCount,
                         confirmedCount,
                         unconfirmedCount,
-                        unresolvedHelpCount
+                        unresolvedHelpStudentCount
                 )
         );
     }
@@ -184,21 +187,25 @@ public class AlertService {
         requireTeacher(requester);
         Alert alert = getAlert(alertId);
         Map<Long, HelpStatus> helpStatusByParticipantId = helpRequestRepository
-                .findByAlertAndStatusIn(alert, UNRESOLVED_HELP_STATUSES)
+                .findByAlert(alert)
                 .stream()
                 .collect(Collectors.toMap(
                         helpRequest -> helpRequest.getParticipant().getId(),
                         helpRequest -> helpRequest.getStatus(),
-                        this::moreUrgentHelpStatus
+                        (current, next) -> current
                 ));
 
         List<AlertStudentResponse> items = alertParticipantRepository.findByAlert(alert).stream()
                 .filter(participant -> matchesPriority(
                         participant,
-                        priority
+                        priority,
+                        helpStatusByParticipantId.get(participant.getId())
                 ))
                 .sorted(Comparator
-                        .comparingInt((AlertParticipant participant) -> priorityOf(participant.getStudentStatus()))
+                        .comparingInt((AlertParticipant participant) -> priorityOf(
+                                participant,
+                                helpStatusByParticipantId.get(participant.getId())
+                        ))
                         .thenComparing(participant -> participant.getStudent().getGrade(), Comparator.nullsLast(Integer::compareTo))
                         .thenComparing(participant -> participant.getStudent().getClassNumber(), Comparator.nullsLast(Integer::compareTo))
                         .thenComparing(participant -> participant.getStudent().getStudentNumber(), Comparator.nullsLast(Integer::compareTo))
@@ -242,6 +249,14 @@ public class AlertService {
                         .thenComparing(participant -> participant.getStudent().getName()))
                 .map(AlertResultUnconfirmedStudentResponse::from)
                 .toList();
+        List<AlertResultUnresolvedHelpRequestResponse> unresolvedHelpRequests = helpRequestRepository
+                .findByAlertAndStatusIn(alert, UNRESOLVED_HELP_STATUSES)
+                .stream()
+                .sorted(Comparator
+                        .comparingInt((HelpRequest helpRequest) -> priorityOf(helpRequest.getStatus()))
+                        .thenComparing(HelpRequest::getCreatedAt))
+                .map(AlertResultUnresolvedHelpRequestResponse::from)
+                .toList();
 
         return new AlertResultResponse(
                 alert.getAlertId(),
@@ -252,7 +267,8 @@ public class AlertService {
                 alert.getReasonType(),
                 alert.getCustomReason(),
                 createResultSummary(alert),
-                unconfirmedStudents
+                unconfirmedStudents,
+                unresolvedHelpRequests
         );
     }
 
@@ -281,7 +297,7 @@ public class AlertService {
         Alert alert = getAlert(alertId);
         AlertParticipant participant = getParticipant(alert, student);
         HelpRequestResponse helpRequest = helpRequestRepository
-                .findFirstByAlertAndParticipantOrderByCreatedAtDesc(alert, participant)
+                .findByAlertAndParticipant(alert, participant)
                 .map(HelpRequestResponse::from)
                 .orElse(null);
 
@@ -311,6 +327,9 @@ public class AlertService {
         }
 
         AlertParticipant participant = getParticipant(alert, student);
+        if (helpRequestRepository.existsByAlertAndParticipantAndStatusIn(alert, participant, UNRESOLVED_HELP_STATUSES)) {
+            throw HelpRequestNotResolvedException.EXCEPTION;
+        }
         participant.updateStudentStatus(request.status());
 
         return new UpdateMyAlertStatusResponse(
@@ -332,41 +351,12 @@ public class AlertService {
 
     private DashboardSummaryResponse createDashboardSummary(Alert alert) {
         long participantCount = alertParticipantRepository.countByAlert(alert);
-        long helpRequestedCount = alertParticipantRepository.countByAlertAndStudentStatus(
-                alert,
-                StudentStatus.HELP_REQUESTED
-        );
-        long noResponseCount = alertParticipantRepository.countByAlertAndStudentStatus(
-                alert,
-                StudentStatus.NO_RESPONSE
-        );
-        long evacuatingCount = alertParticipantRepository.countByAlertAndStudentStatus(
-                alert,
-                StudentStatus.EVACUATING
-        );
-        long evacuatedCount = alertParticipantRepository.countByAlertAndStudentStatus(
-                alert,
-                StudentStatus.EVACUATED
-        );
-        long confirmedCount = alertParticipantRepository.countByAlertAndTeacherConfirmation(
-                alert,
-                TeacherConfirmation.CONFIRMED
-        );
-        long unconfirmedCount = participantCount - confirmedCount;
-        long uncheckedCount = helpRequestRepository.countByAlertAndStatus(alert, HelpStatus.UNCHECKED);
-        long acknowledgedCount = helpRequestRepository.countByAlertAndStatus(alert, HelpStatus.ACKNOWLEDGED);
-        long resolvedCount = helpRequestRepository.countByAlertAndStatus(alert, HelpStatus.RESOLVED);
 
         return new DashboardSummaryResponse(
                 participantCount,
-                new StudentStatusSummaryResponse(
-                        helpRequestedCount,
-                        noResponseCount,
-                        evacuatingCount,
-                        evacuatedCount
-                ),
-                new TeacherConfirmationSummaryResponse(confirmedCount, unconfirmedCount),
-                new HelpStatusSummaryResponse(uncheckedCount, acknowledgedCount, resolvedCount)
+                createStudentStatusSummary(alert),
+                createTeacherConfirmationSummary(alert, participantCount),
+                createHelpStatusSummary(alert)
         );
     }
 
@@ -376,48 +366,62 @@ public class AlertService {
                 alert,
                 StudentStatus.NO_RESPONSE
         );
-        long helpRequestedCount = alertParticipantRepository.countByAlertAndStudentStatus(
-                alert,
-                StudentStatus.HELP_REQUESTED
-        );
-        long confirmedCount = alertParticipantRepository.countByAlertAndTeacherConfirmation(
-                alert,
-                TeacherConfirmation.CONFIRMED
-        );
-        long unconfirmedCount = participantCount - confirmedCount;
-        long helpRequestCount = helpRequestRepository.countByAlert(alert);
-        long resolvedHelpCount = helpRequestRepository.countByAlertAndStatus(alert, HelpStatus.RESOLVED);
 
         return new AlertResultSummaryResponse(
                 participantCount,
                 participantCount - noResponseCount,
-                helpRequestedCount,
+                createStudentStatusSummary(alert),
+                createTeacherConfirmationSummary(alert, participantCount),
+                createHelpStatusSummary(alert)
+        );
+    }
+
+    private StudentStatusSummaryResponse createStudentStatusSummary(Alert alert) {
+        return new StudentStatusSummaryResponse(
+                alertParticipantRepository.countByAlertAndStudentStatus(alert, StudentStatus.HELP_REQUESTED),
+                alertParticipantRepository.countByAlertAndStudentStatus(alert, StudentStatus.NO_RESPONSE),
+                alertParticipantRepository.countByAlertAndStudentStatus(alert, StudentStatus.EVACUATING),
+                alertParticipantRepository.countByAlertAndStudentStatus(alert, StudentStatus.EVACUATED)
+        );
+    }
+
+    private TeacherConfirmationSummaryResponse createTeacherConfirmationSummary(Alert alert, long participantCount) {
+        long confirmedCount = alertParticipantRepository.countByAlertAndTeacherConfirmation(
+                alert,
+                TeacherConfirmation.CONFIRMED
+        );
+
+        return new TeacherConfirmationSummaryResponse(
                 confirmedCount,
-                unconfirmedCount,
-                helpRequestCount,
-                resolvedHelpCount
+                participantCount - confirmedCount
+        );
+    }
+
+    private HelpStatusSummaryResponse createHelpStatusSummary(Alert alert) {
+        return new HelpStatusSummaryResponse(
+                helpRequestRepository.countByAlertAndStatus(alert, HelpStatus.UNCHECKED),
+                helpRequestRepository.countByAlertAndStatus(alert, HelpStatus.ACKNOWLEDGED),
+                helpRequestRepository.countByAlertAndStatus(alert, HelpStatus.RESOLVED)
         );
     }
 
     private boolean matchesPriority(
             AlertParticipant participant,
-            AlertStudentPriority priority
+            AlertStudentPriority priority,
+            HelpStatus helpStatus
     ) {
         if (priority == null) {
             return true;
         }
 
         return switch (priority) {
-            case HELP -> participant.getStudentStatus() == StudentStatus.HELP_REQUESTED;
+            case HELP -> participant.getStudentStatus() == StudentStatus.HELP_REQUESTED
+                    && UNRESOLVED_HELP_STATUSES.contains(helpStatus);
             case NO_RESPONSE -> participant.getStudentStatus() == StudentStatus.NO_RESPONSE;
             case EVACUATING -> participant.getStudentStatus() == StudentStatus.EVACUATING;
             case EVACUATED -> participant.getStudentStatus() == StudentStatus.EVACUATED;
             case CONFIRMED -> participant.getTeacherConfirmation() == TeacherConfirmation.CONFIRMED;
         };
-    }
-
-    private HelpStatus moreUrgentHelpStatus(HelpStatus current, HelpStatus next) {
-        return priorityOf(current) <= priorityOf(next) ? current : next;
     }
 
     private int priorityOf(HelpStatus status) {
@@ -428,12 +432,25 @@ public class AlertService {
         };
     }
 
-    private int priorityOf(StudentStatus status) {
-        return switch (status) {
-            case HELP_REQUESTED -> 0;
-            case NO_RESPONSE -> 1;
-            case EVACUATING -> 2;
-            case EVACUATED -> 3;
+    private int priorityOf(AlertParticipant participant, HelpStatus helpStatus) {
+        if (participant.getStudentStatus() == StudentStatus.HELP_REQUESTED) {
+            if (helpStatus == HelpStatus.UNCHECKED) {
+                return 0;
+            }
+            if (helpStatus == HelpStatus.ACKNOWLEDGED) {
+                return 1;
+            }
+            if (helpStatus == HelpStatus.RESOLVED) {
+                return 5;
+            }
+            return 0;
+        }
+
+        return switch (participant.getStudentStatus()) {
+            case NO_RESPONSE -> 2;
+            case EVACUATING -> 3;
+            case EVACUATED -> 4;
+            case HELP_REQUESTED -> 5;
         };
     }
 

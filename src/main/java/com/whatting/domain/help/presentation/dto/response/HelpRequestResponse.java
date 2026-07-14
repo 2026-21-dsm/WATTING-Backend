@@ -9,7 +9,7 @@ import java.util.UUID;
 
 public record HelpRequestResponse(
         UUID helpRequestId,
-        HelpStatus status,
+        HelpStatus helpStatus,
         String locationText,
         HelpCategory category,
         String details,
