@@ -2,6 +2,7 @@ package com.whatting.domain.help.service;
 
 import com.whatting.domain.alert.domain.Alert;
 import com.whatting.domain.alert.domain.AlertParticipant;
+import com.whatting.domain.alert.domain.StudentStatus;
 import com.whatting.domain.help.domain.HelpRequest;
 import com.whatting.domain.help.domain.HelpStatus;
 import com.whatting.domain.help.exception.ActiveHelpRequestExistsException;
@@ -72,6 +73,7 @@ public class HelpRequestService {
                 request.category(),
                 request.details()
         );
+        participant.updateStudentStatus(StudentStatus.HELP_REQUESTED);
 
         return HelpRequestResponse.from(helpRequestRepository.save(helpRequest));
     }

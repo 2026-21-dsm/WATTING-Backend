@@ -2,6 +2,7 @@ package com.whatting.domain.alert.service;
 
 import com.whatting.domain.alert.domain.Alert;
 import com.whatting.domain.alert.domain.AlertParticipant;
+import com.whatting.domain.alert.domain.AlertStudentPriority;
 import com.whatting.domain.alert.domain.AlertStatus;
 import com.whatting.domain.help.domain.HelpStatus;
 import com.whatting.domain.alert.domain.StudentStatus;
@@ -19,10 +20,13 @@ import com.whatting.domain.alert.presentation.dto.request.UpdateMyAlertStatusReq
 import com.whatting.domain.alert.presentation.dto.request.UpdateAlertTypeRequest;
 import com.whatting.domain.alert.presentation.dto.response.ActiveAlertResponse;
 import com.whatting.domain.alert.presentation.dto.response.AlertCloseSummaryResponse;
+import com.whatting.domain.alert.presentation.dto.response.AlertStudentListResponse;
+import com.whatting.domain.alert.presentation.dto.response.AlertStudentResponse;
 import com.whatting.domain.alert.presentation.dto.response.CloseAlertResponse;
 import com.whatting.domain.alert.presentation.dto.response.CreateAlertResponse;
 import com.whatting.domain.help.presentation.dto.response.HelpRequestResponse;
 import com.whatting.domain.alert.presentation.dto.response.MyAlertStatusResponse;
+import com.whatting.domain.alert.presentation.dto.response.UpdateStudentConfirmationResponse;
 import com.whatting.domain.alert.presentation.dto.response.UpdateAlertTypeResponse;
 import com.whatting.domain.alert.presentation.dto.response.UpdateMyAlertStatusResponse;
 import com.whatting.domain.alert.repository.AlertParticipantRepository;
@@ -36,13 +40,21 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class AlertService {
+
+    private static final List<HelpStatus> UNRESOLVED_HELP_STATUSES = List.of(
+            HelpStatus.UNCHECKED,
+            HelpStatus.ACKNOWLEDGED
+    );
 
     private final AlertRepository alertRepository;
     private final AlertParticipantRepository alertParticipantRepository;
@@ -135,7 +147,7 @@ public class AlertService {
         long unconfirmedCount = participantCount - confirmedCount;
         long unresolvedHelpCount = helpRequestRepository.countByAlertAndStatusIn(
                 alert,
-                List.of(HelpStatus.UNCHECKED, HelpStatus.ACKNOWLEDGED)
+                UNRESOLVED_HELP_STATUSES
         );
 
         return new CloseAlertResponse(
@@ -151,6 +163,58 @@ public class AlertService {
                         unresolvedHelpCount
                 )
         );
+    }
+
+    @Transactional(readOnly = true)
+    public AlertStudentListResponse getAlertStudents(UUID alertId, AlertStudentPriority priority, User requester) {
+        requireTeacher(requester);
+        Alert alert = getAlert(alertId);
+        Map<Long, HelpStatus> helpStatusByParticipantId = helpRequestRepository
+                .findByAlertAndStatusIn(alert, UNRESOLVED_HELP_STATUSES)
+                .stream()
+                .collect(Collectors.toMap(
+                        helpRequest -> helpRequest.getParticipant().getId(),
+                        helpRequest -> helpRequest.getStatus(),
+                        this::moreUrgentHelpStatus
+                ));
+
+        List<AlertStudentResponse> items = alertParticipantRepository.findByAlert(alert).stream()
+                .filter(participant -> matchesPriority(
+                        participant,
+                        priority
+                ))
+                .sorted(Comparator
+                        .comparingInt((AlertParticipant participant) -> priorityOf(participant.getStudentStatus()))
+                        .thenComparing(participant -> participant.getStudent().getGrade(), Comparator.nullsLast(Integer::compareTo))
+                        .thenComparing(participant -> participant.getStudent().getClassNumber(), Comparator.nullsLast(Integer::compareTo))
+                        .thenComparing(participant -> participant.getStudent().getStudentNumber(), Comparator.nullsLast(Integer::compareTo))
+                        .thenComparing(participant -> participant.getStudent().getName()))
+                .map(participant -> AlertStudentResponse.from(
+                        participant,
+                        helpStatusByParticipantId.get(participant.getId())
+                ))
+                .toList();
+
+        return new AlertStudentListResponse(items);
+    }
+
+    @Transactional
+    public UpdateStudentConfirmationResponse updateStudentConfirmation(
+            UUID alertId,
+            UUID studentId,
+            User requester
+    ) {
+        User teacher = requireTeacher(requester);
+        Alert alert = getAlert(alertId);
+        if (alert.isClosed()) {
+            throw AlertAlreadyClosedException.EXCEPTION;
+        }
+
+        AlertParticipant participant = alertParticipantRepository.findByAlertAndStudent_UserId(alert, studentId)
+                .orElseThrow(() -> AlertParticipantNotFoundException.EXCEPTION);
+        participant.toggleConfirmation(teacher);
+
+        return UpdateStudentConfirmationResponse.from(participant);
     }
 
     @Transactional(readOnly = true)
@@ -184,7 +248,7 @@ public class AlertService {
         if (alert.isClosed()) {
             throw AlertAlreadyClosedException.EXCEPTION;
         }
-        if (request.status() == StudentStatus.NO_RESPONSE) {
+        if (request.status() == StudentStatus.NO_RESPONSE || request.status() == StudentStatus.HELP_REQUESTED) {
             throw InvalidStudentStatusException.EXCEPTION;
         }
 
@@ -206,6 +270,44 @@ public class AlertService {
     private AlertParticipant getParticipant(Alert alert, User student) {
         return alertParticipantRepository.findByAlertAndStudent(alert, student)
                 .orElseThrow(() -> AlertParticipantNotFoundException.EXCEPTION);
+    }
+
+    private boolean matchesPriority(
+            AlertParticipant participant,
+            AlertStudentPriority priority
+    ) {
+        if (priority == null) {
+            return true;
+        }
+
+        return switch (priority) {
+            case HELP -> participant.getStudentStatus() == StudentStatus.HELP_REQUESTED;
+            case NO_RESPONSE -> participant.getStudentStatus() == StudentStatus.NO_RESPONSE;
+            case EVACUATING -> participant.getStudentStatus() == StudentStatus.EVACUATING;
+            case EVACUATED -> participant.getStudentStatus() == StudentStatus.EVACUATED;
+            case CONFIRMED -> participant.getTeacherConfirmation() == TeacherConfirmation.CONFIRMED;
+        };
+    }
+
+    private HelpStatus moreUrgentHelpStatus(HelpStatus current, HelpStatus next) {
+        return priorityOf(current) <= priorityOf(next) ? current : next;
+    }
+
+    private int priorityOf(HelpStatus status) {
+        return switch (status) {
+            case UNCHECKED -> 0;
+            case ACKNOWLEDGED -> 1;
+            case RESOLVED -> 2;
+        };
+    }
+
+    private int priorityOf(StudentStatus status) {
+        return switch (status) {
+            case HELP_REQUESTED -> 0;
+            case NO_RESPONSE -> 1;
+            case EVACUATING -> 2;
+            case EVACUATED -> 3;
+        };
     }
 
     private User requireTeacher(User requester) {
