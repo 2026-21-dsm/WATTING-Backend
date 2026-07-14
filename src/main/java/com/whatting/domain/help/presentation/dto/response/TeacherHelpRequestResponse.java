@@ -10,7 +10,6 @@ import java.util.UUID;
 
 public record TeacherHelpRequestResponse(
         UUID helpRequestId,
-        UUID studentId,
         String studentName,
         Integer grade,
         Integer classNumber,
@@ -18,7 +17,6 @@ public record TeacherHelpRequestResponse(
         HelpStatus status,
         String locationText,
         HelpCategory category,
-        String details,
         OffsetDateTime createdAt
 ) {
     public static TeacherHelpRequestResponse from(HelpRequest helpRequest) {
@@ -26,7 +24,6 @@ public record TeacherHelpRequestResponse(
 
         return new TeacherHelpRequestResponse(
                 helpRequest.getHelpRequestId(),
-                student.getUserId(),
                 student.getName(),
                 student.getGrade(),
                 student.getClassNumber(),
@@ -34,7 +31,6 @@ public record TeacherHelpRequestResponse(
                 helpRequest.getStatus(),
                 helpRequest.getLocationText(),
                 helpRequest.getCategory(),
-                helpRequest.getDetails(),
                 helpRequest.getCreatedAt()
         );
     }

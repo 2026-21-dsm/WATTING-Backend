@@ -142,6 +142,7 @@ public class AlertService {
                 alert.getAlertId(),
                 alert.getStatus(),
                 alert.getReasonType(),
+                alert.getCustomReason(),
                 alert.getEndedAt(),
                 new AlertCloseSummaryResponse(
                         participantCount,
