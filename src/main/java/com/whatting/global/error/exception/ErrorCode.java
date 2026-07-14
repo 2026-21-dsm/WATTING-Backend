@@ -26,6 +26,7 @@ public enum ErrorCode {
     Active_Alert_Exists_Exception(409, "이미 진행 중인 경보가 있습니다"),
     Alert_Not_Found_Exception(404, "경보를 찾을 수 없습니다"),
     Alert_Already_Closed_Exception(409, "이미 종료된 경보입니다"),
+    Alert_Not_Closed_Exception(409, "아직 종료되지 않은 경보입니다"),
     Teacher_Permission_Required_Exception(403, "교사 권한이 필요합니다"),
     Student_Permission_Required_Exception(403, "학생 권한이 필요합니다"),
     Alert_Participant_Not_Found_Exception(404, "해당 경보 대상 학생이 아닙니다"),
