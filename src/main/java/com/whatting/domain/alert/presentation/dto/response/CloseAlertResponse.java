@@ -10,6 +10,7 @@ public record CloseAlertResponse(
         UUID alertId,
         AlertStatus status,
         AlertCloseReasonType reasonType,
+        String customReason,
         OffsetDateTime endedAt,
         AlertCloseSummaryResponse summary
 ) {

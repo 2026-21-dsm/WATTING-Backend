@@ -7,6 +7,7 @@ import com.whatting.domain.help.presentation.dto.request.UpdateHelpRequestStatus
 import com.whatting.domain.help.presentation.dto.request.UpdateMyHelpRequestRequest;
 import com.whatting.domain.help.presentation.dto.response.HelpRequestResponse;
 import com.whatting.domain.help.presentation.dto.response.HelpRequestStatusResponse;
+import com.whatting.domain.help.presentation.dto.response.TeacherHelpRequestDetailResponse;
 import com.whatting.domain.help.presentation.dto.response.TeacherHelpRequestListResponse;
 import com.whatting.domain.help.service.HelpRequestService;
 import com.whatting.domain.user.domain.User;
@@ -71,6 +72,15 @@ public class HelpRequestController {
             @RequestParam(required = false) HelpStatus status
     ) {
         return ResponseEntity.ok(helpRequestService.getHelpRequests(alertId, status, getUser(userDetails)));
+    }
+
+    @GetMapping("/{helpRequestId}")
+    public ResponseEntity<TeacherHelpRequestDetailResponse> getHelpRequest(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable UUID alertId,
+            @PathVariable UUID helpRequestId
+    ) {
+        return ResponseEntity.ok(helpRequestService.getHelpRequest(alertId, helpRequestId, getUser(userDetails)));
     }
 
     @PatchMapping("/{helpRequestId}/status")

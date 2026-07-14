@@ -1,9 +1,11 @@
 package com.whatting.global.error;
 
+import com.whatting.domain.help.domain.HelpStatus;
 import com.whatting.global.error.exception.BusinessException;
 import com.whatting.global.error.exception.CustomJwtException;
 import com.whatting.global.error.exception.ErrorCode;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.TypeMismatchException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -66,6 +68,18 @@ public class GlobalExceptionHandler {
         log.error("MissingServletRequestParameterException : {}", exception.getMessage());
 
         String message = "파라미터 값이 유효하지 않습니다";
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(ErrorResponse.of(HttpStatus.BAD_REQUEST.value(), message));
+    }
+
+    @ExceptionHandler(TypeMismatchException.class)
+    public ResponseEntity<ErrorResponse> handleTypeMismatchException(TypeMismatchException exception) {
+        log.error("TypeMismatchException : {}", exception.getMessage());
+
+        String message = exception.getRequiredType() == HelpStatus.class
+                ? "도움 요청 상태 값이 유효하지 않습니다. 허용 값: UNCHECKED, ACKNOWLEDGED, RESOLVED"
+                : "요청 값이 유효하지 않습니다";
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
                 .body(ErrorResponse.of(HttpStatus.BAD_REQUEST.value(), message));

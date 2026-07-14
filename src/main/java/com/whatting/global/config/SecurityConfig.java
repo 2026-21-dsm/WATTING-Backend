@@ -55,6 +55,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/v1/alerts/{alertId}/help-requests/me").hasAuthority("STUDENT")
                         .requestMatchers(HttpMethod.PATCH, "/api/v1/alerts/{alertId}/help-requests/me").hasAuthority("STUDENT")
                         .requestMatchers(HttpMethod.GET, "/api/v1/alerts/{alertId}/help-requests").hasAuthority("TEACHER")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/alerts/{alertId}/help-requests/{helpRequestId}").hasAuthority("TEACHER")
                         .requestMatchers(HttpMethod.PATCH, "/api/v1/alerts/{alertId}/help-requests/status").hasAuthority("TEACHER")
                         .requestMatchers(HttpMethod.PATCH, "/api/v1/alerts/{alertId}/help-requests/{helpRequestId}/status").hasAuthority("TEACHER")
                         .anyRequest().authenticated()

@@ -20,6 +20,7 @@ import com.whatting.domain.help.presentation.dto.request.UpdateMyHelpRequestRequ
 import com.whatting.domain.help.presentation.dto.response.HelpRequestResponse;
 import com.whatting.domain.help.presentation.dto.response.HelpRequestStatusResponse;
 import com.whatting.domain.help.presentation.dto.response.TeacherHelpRequestListResponse;
+import com.whatting.domain.help.presentation.dto.response.TeacherHelpRequestDetailResponse;
 import com.whatting.domain.help.presentation.dto.response.TeacherHelpRequestResponse;
 import com.whatting.domain.alert.repository.AlertParticipantRepository;
 import com.whatting.domain.alert.repository.AlertRepository;
@@ -127,6 +128,16 @@ public class HelpRequestService {
                 .toList();
 
         return new TeacherHelpRequestListResponse(items);
+    }
+
+    @Transactional(readOnly = true)
+    public TeacherHelpRequestDetailResponse getHelpRequest(UUID alertId, UUID helpRequestId, User requester) {
+        requireTeacher(requester);
+        Alert alert = getAlert(alertId);
+        HelpRequest helpRequest = helpRequestRepository.findByAlertAndHelpRequestId(alert, helpRequestId)
+                .orElseThrow(() -> HelpRequestNotFoundException.EXCEPTION);
+
+        return TeacherHelpRequestDetailResponse.from(helpRequest);
     }
 
     @Transactional
