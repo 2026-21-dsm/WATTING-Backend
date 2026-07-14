@@ -34,5 +34,8 @@ public interface HelpRequestRepository extends JpaRepository<HelpRequest, Long> 
     @EntityGraph(attributePaths = {"participant", "participant.student"})
     List<HelpRequest> findByAlertAndStatus(Alert alert, HelpStatus status);
 
+    @EntityGraph(attributePaths = {"participant"})
+    List<HelpRequest> findByAlertAndStatusIn(Alert alert, Collection<HelpStatus> statuses);
+
     long countByAlertAndStatusIn(Alert alert, Collection<HelpStatus> statuses);
 }

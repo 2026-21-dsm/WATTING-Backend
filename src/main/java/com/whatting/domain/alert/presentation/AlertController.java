@@ -1,13 +1,16 @@
 package com.whatting.domain.alert.presentation;
 
+import com.whatting.domain.alert.domain.AlertStudentPriority;
 import com.whatting.domain.alert.presentation.dto.request.CloseAlertRequest;
 import com.whatting.domain.alert.presentation.dto.request.CreateAlertRequest;
 import com.whatting.domain.alert.presentation.dto.request.UpdateMyAlertStatusRequest;
 import com.whatting.domain.alert.presentation.dto.request.UpdateAlertTypeRequest;
 import com.whatting.domain.alert.presentation.dto.response.ActiveAlertResponse;
+import com.whatting.domain.alert.presentation.dto.response.AlertStudentListResponse;
 import com.whatting.domain.alert.presentation.dto.response.CloseAlertResponse;
 import com.whatting.domain.alert.presentation.dto.response.CreateAlertResponse;
 import com.whatting.domain.alert.presentation.dto.response.MyAlertStatusResponse;
+import com.whatting.domain.alert.presentation.dto.response.UpdateStudentConfirmationResponse;
 import com.whatting.domain.alert.presentation.dto.response.UpdateAlertTypeResponse;
 import com.whatting.domain.alert.presentation.dto.response.UpdateMyAlertStatusResponse;
 import com.whatting.domain.alert.service.AlertService;
@@ -25,6 +28,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.UUID;
@@ -71,6 +75,28 @@ public class AlertController {
             @Valid @RequestBody CloseAlertRequest request
     ) {
         return ResponseEntity.ok(alertService.closeAlert(alertId, request, getUser(userDetails)));
+    }
+
+    @GetMapping("/{alertId}/students")
+    public ResponseEntity<AlertStudentListResponse> getAlertStudents(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable UUID alertId,
+            @RequestParam(required = false) AlertStudentPriority priority
+    ) {
+        return ResponseEntity.ok(alertService.getAlertStudents(alertId, priority, getUser(userDetails)));
+    }
+
+    @PatchMapping("/{alertId}/students/{studentId}/confirmation")
+    public ResponseEntity<UpdateStudentConfirmationResponse> updateStudentConfirmation(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable UUID alertId,
+            @PathVariable UUID studentId
+    ) {
+        return ResponseEntity.ok(alertService.updateStudentConfirmation(
+                alertId,
+                studentId,
+                getUser(userDetails)
+        ));
     }
 
     @GetMapping("/{alertId}/me")

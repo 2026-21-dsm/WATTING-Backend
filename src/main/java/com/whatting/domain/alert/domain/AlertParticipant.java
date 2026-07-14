@@ -93,4 +93,8 @@ public class AlertParticipant {
         this.confirmedBy = null;
         this.confirmedAt = null;
     }
+
+    public void toggleConfirmation(User teacher) {
+        confirm(teacher, teacherConfirmation != TeacherConfirmation.CONFIRMED);
+    }
 }
