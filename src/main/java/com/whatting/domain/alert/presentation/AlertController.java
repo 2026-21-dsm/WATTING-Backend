@@ -6,6 +6,8 @@ import com.whatting.domain.alert.presentation.dto.request.CreateAlertRequest;
 import com.whatting.domain.alert.presentation.dto.request.UpdateMyAlertStatusRequest;
 import com.whatting.domain.alert.presentation.dto.request.UpdateAlertTypeRequest;
 import com.whatting.domain.alert.presentation.dto.response.ActiveAlertResponse;
+import com.whatting.domain.alert.presentation.dto.response.AlertDashboardResponse;
+import com.whatting.domain.alert.presentation.dto.response.AlertResultResponse;
 import com.whatting.domain.alert.presentation.dto.response.AlertStudentListResponse;
 import com.whatting.domain.alert.presentation.dto.response.CloseAlertResponse;
 import com.whatting.domain.alert.presentation.dto.response.CreateAlertResponse;
@@ -84,6 +86,22 @@ public class AlertController {
             @RequestParam(required = false) AlertStudentPriority priority
     ) {
         return ResponseEntity.ok(alertService.getAlertStudents(alertId, priority, getUser(userDetails)));
+    }
+
+    @GetMapping("/{alertId}/dashboard")
+    public ResponseEntity<AlertDashboardResponse> getAlertDashboard(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable UUID alertId
+    ) {
+        return ResponseEntity.ok(alertService.getAlertDashboard(alertId, getUser(userDetails)));
+    }
+
+    @GetMapping("/{alertId}/result")
+    public ResponseEntity<AlertResultResponse> getAlertResult(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable UUID alertId
+    ) {
+        return ResponseEntity.ok(alertService.getAlertResult(alertId, getUser(userDetails)));
     }
 
     @PatchMapping("/{alertId}/students/{studentId}/confirmation")

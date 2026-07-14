@@ -2,6 +2,7 @@ package com.whatting.domain.alert.repository;
 
 import com.whatting.domain.alert.domain.Alert;
 import com.whatting.domain.alert.domain.AlertParticipant;
+import com.whatting.domain.alert.domain.StudentStatus;
 import com.whatting.domain.alert.domain.TeacherConfirmation;
 import com.whatting.domain.user.domain.User;
 import org.springframework.data.jpa.repository.EntityGraph;
@@ -15,6 +16,8 @@ public interface AlertParticipantRepository extends JpaRepository<AlertParticipa
 
     long countByAlert(Alert alert);
 
+    long countByAlertAndStudentStatus(Alert alert, StudentStatus studentStatus);
+
     long countByAlertAndTeacherConfirmation(Alert alert, TeacherConfirmation teacherConfirmation);
 
     Optional<AlertParticipant> findByAlertAndStudent(Alert alert, User student);
@@ -24,4 +27,7 @@ public interface AlertParticipantRepository extends JpaRepository<AlertParticipa
 
     @EntityGraph(attributePaths = {"student", "confirmedBy"})
     List<AlertParticipant> findByAlert(Alert alert);
+
+    @EntityGraph(attributePaths = {"student"})
+    List<AlertParticipant> findByAlertAndTeacherConfirmation(Alert alert, TeacherConfirmation teacherConfirmation);
 }

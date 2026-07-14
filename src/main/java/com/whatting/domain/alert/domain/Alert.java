@@ -92,7 +92,7 @@ public class Alert {
 
     public void close(AlertCloseReasonType reasonType, String customReason, User closedBy) {
         this.status = AlertStatus.CLOSED;
-        this.reasonType = reasonType;
+        this.reasonType = reasonType == null ? defaultCloseReasonType() : reasonType;
         this.customReason = customReason;
         this.closedBy = closedBy;
         this.endedAt = now();
@@ -118,5 +118,14 @@ public class Alert {
 
     private static OffsetDateTime now() {
         return OffsetDateTime.now(SERVICE_ZONE);
+    }
+
+    private AlertCloseReasonType defaultCloseReasonType() {
+        return switch (type) {
+            case REAL -> AlertCloseReasonType.REAL_ENDED;
+            case DRILL -> AlertCloseReasonType.DRILL_ENDED;
+            case INSPECTION -> AlertCloseReasonType.INSPECTION_ENDED;
+            case MALFUNCTION -> AlertCloseReasonType.MALFUNCTION_CONFIRMED;
+        };
     }
 }

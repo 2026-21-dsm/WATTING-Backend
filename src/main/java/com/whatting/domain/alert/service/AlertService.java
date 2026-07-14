@@ -10,6 +10,7 @@ import com.whatting.domain.alert.domain.TeacherConfirmation;
 import com.whatting.domain.alert.exception.ActiveAlertExistsException;
 import com.whatting.domain.alert.exception.AlertAlreadyClosedException;
 import com.whatting.domain.alert.exception.AlertNotFoundException;
+import com.whatting.domain.alert.exception.AlertNotClosedException;
 import com.whatting.domain.alert.exception.AlertParticipantNotFoundException;
 import com.whatting.domain.alert.exception.InvalidStudentStatusException;
 import com.whatting.domain.alert.exception.StudentPermissionRequiredException;
@@ -20,12 +21,21 @@ import com.whatting.domain.alert.presentation.dto.request.UpdateMyAlertStatusReq
 import com.whatting.domain.alert.presentation.dto.request.UpdateAlertTypeRequest;
 import com.whatting.domain.alert.presentation.dto.response.ActiveAlertResponse;
 import com.whatting.domain.alert.presentation.dto.response.AlertCloseSummaryResponse;
+import com.whatting.domain.alert.presentation.dto.response.AlertDashboardResponse;
+import com.whatting.domain.alert.presentation.dto.response.AlertResultResponse;
+import com.whatting.domain.alert.presentation.dto.response.AlertResultSummaryResponse;
+import com.whatting.domain.alert.presentation.dto.response.AlertResultUnconfirmedStudentResponse;
 import com.whatting.domain.alert.presentation.dto.response.AlertStudentListResponse;
 import com.whatting.domain.alert.presentation.dto.response.AlertStudentResponse;
 import com.whatting.domain.alert.presentation.dto.response.CloseAlertResponse;
 import com.whatting.domain.alert.presentation.dto.response.CreateAlertResponse;
+import com.whatting.domain.alert.presentation.dto.response.DashboardAlertResponse;
+import com.whatting.domain.alert.presentation.dto.response.DashboardSummaryResponse;
+import com.whatting.domain.alert.presentation.dto.response.HelpStatusSummaryResponse;
 import com.whatting.domain.help.presentation.dto.response.HelpRequestResponse;
 import com.whatting.domain.alert.presentation.dto.response.MyAlertStatusResponse;
+import com.whatting.domain.alert.presentation.dto.response.StudentStatusSummaryResponse;
+import com.whatting.domain.alert.presentation.dto.response.TeacherConfirmationSummaryResponse;
 import com.whatting.domain.alert.presentation.dto.response.UpdateStudentConfirmationResponse;
 import com.whatting.domain.alert.presentation.dto.response.UpdateAlertTypeResponse;
 import com.whatting.domain.alert.presentation.dto.response.UpdateMyAlertStatusResponse;
@@ -40,6 +50,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.OffsetDateTime;
+import java.time.ZoneId;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -50,6 +62,8 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class AlertService {
+
+    private static final ZoneId SERVICE_ZONE = ZoneId.of("Asia/Seoul");
 
     private static final List<HelpStatus> UNRESOLVED_HELP_STATUSES = List.of(
             HelpStatus.UNCHECKED,
@@ -198,6 +212,50 @@ public class AlertService {
         return new AlertStudentListResponse(items);
     }
 
+    @Transactional(readOnly = true)
+    public AlertDashboardResponse getAlertDashboard(UUID alertId, User requester) {
+        requireTeacher(requester);
+        Alert alert = getAlert(alertId);
+
+        return new AlertDashboardResponse(
+                DashboardAlertResponse.from(alert),
+                createDashboardSummary(alert),
+                OffsetDateTime.now(SERVICE_ZONE)
+        );
+    }
+
+    @Transactional(readOnly = true)
+    public AlertResultResponse getAlertResult(UUID alertId, User requester) {
+        requireTeacher(requester);
+        Alert alert = getAlert(alertId);
+        if (!alert.isClosed()) {
+            throw AlertNotClosedException.EXCEPTION;
+        }
+
+        List<AlertResultUnconfirmedStudentResponse> unconfirmedStudents = alertParticipantRepository
+                .findByAlertAndTeacherConfirmation(alert, TeacherConfirmation.UNCONFIRMED)
+                .stream()
+                .sorted(Comparator
+                        .comparing((AlertParticipant participant) -> participant.getStudent().getGrade(), Comparator.nullsLast(Integer::compareTo))
+                        .thenComparing(participant -> participant.getStudent().getClassNumber(), Comparator.nullsLast(Integer::compareTo))
+                        .thenComparing(participant -> participant.getStudent().getStudentNumber(), Comparator.nullsLast(Integer::compareTo))
+                        .thenComparing(participant -> participant.getStudent().getName()))
+                .map(AlertResultUnconfirmedStudentResponse::from)
+                .toList();
+
+        return new AlertResultResponse(
+                alert.getAlertId(),
+                alert.getType(),
+                alert.getStatus(),
+                alert.getStartedAt(),
+                alert.getEndedAt(),
+                alert.getReasonType(),
+                alert.getCustomReason(),
+                createResultSummary(alert),
+                unconfirmedStudents
+        );
+    }
+
     @Transactional
     public UpdateStudentConfirmationResponse updateStudentConfirmation(
             UUID alertId,
@@ -270,6 +328,75 @@ public class AlertService {
     private AlertParticipant getParticipant(Alert alert, User student) {
         return alertParticipantRepository.findByAlertAndStudent(alert, student)
                 .orElseThrow(() -> AlertParticipantNotFoundException.EXCEPTION);
+    }
+
+    private DashboardSummaryResponse createDashboardSummary(Alert alert) {
+        long participantCount = alertParticipantRepository.countByAlert(alert);
+        long helpRequestedCount = alertParticipantRepository.countByAlertAndStudentStatus(
+                alert,
+                StudentStatus.HELP_REQUESTED
+        );
+        long noResponseCount = alertParticipantRepository.countByAlertAndStudentStatus(
+                alert,
+                StudentStatus.NO_RESPONSE
+        );
+        long evacuatingCount = alertParticipantRepository.countByAlertAndStudentStatus(
+                alert,
+                StudentStatus.EVACUATING
+        );
+        long evacuatedCount = alertParticipantRepository.countByAlertAndStudentStatus(
+                alert,
+                StudentStatus.EVACUATED
+        );
+        long confirmedCount = alertParticipantRepository.countByAlertAndTeacherConfirmation(
+                alert,
+                TeacherConfirmation.CONFIRMED
+        );
+        long unconfirmedCount = participantCount - confirmedCount;
+        long uncheckedCount = helpRequestRepository.countByAlertAndStatus(alert, HelpStatus.UNCHECKED);
+        long acknowledgedCount = helpRequestRepository.countByAlertAndStatus(alert, HelpStatus.ACKNOWLEDGED);
+        long resolvedCount = helpRequestRepository.countByAlertAndStatus(alert, HelpStatus.RESOLVED);
+
+        return new DashboardSummaryResponse(
+                participantCount,
+                new StudentStatusSummaryResponse(
+                        helpRequestedCount,
+                        noResponseCount,
+                        evacuatingCount,
+                        evacuatedCount
+                ),
+                new TeacherConfirmationSummaryResponse(confirmedCount, unconfirmedCount),
+                new HelpStatusSummaryResponse(uncheckedCount, acknowledgedCount, resolvedCount)
+        );
+    }
+
+    private AlertResultSummaryResponse createResultSummary(Alert alert) {
+        long participantCount = alertParticipantRepository.countByAlert(alert);
+        long noResponseCount = alertParticipantRepository.countByAlertAndStudentStatus(
+                alert,
+                StudentStatus.NO_RESPONSE
+        );
+        long helpRequestedCount = alertParticipantRepository.countByAlertAndStudentStatus(
+                alert,
+                StudentStatus.HELP_REQUESTED
+        );
+        long confirmedCount = alertParticipantRepository.countByAlertAndTeacherConfirmation(
+                alert,
+                TeacherConfirmation.CONFIRMED
+        );
+        long unconfirmedCount = participantCount - confirmedCount;
+        long helpRequestCount = helpRequestRepository.countByAlert(alert);
+        long resolvedHelpCount = helpRequestRepository.countByAlertAndStatus(alert, HelpStatus.RESOLVED);
+
+        return new AlertResultSummaryResponse(
+                participantCount,
+                participantCount - noResponseCount,
+                helpRequestedCount,
+                confirmedCount,
+                unconfirmedCount,
+                helpRequestCount,
+                resolvedHelpCount
+        );
     }
 
     private boolean matchesPriority(
